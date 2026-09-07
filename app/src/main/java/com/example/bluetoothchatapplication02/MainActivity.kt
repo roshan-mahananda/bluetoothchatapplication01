@@ -156,7 +156,9 @@ class MainActivity : ComponentActivity() {
     private fun startDiscovery() {
         val adapter = bluetoothSupport.getBluetoothAdapter()
         if (adapter != null) {
-            bluetoothScanner.startDiscovery(adapter)
+            bluetoothScanner.scanLeDevice(adapter){ discoveredDevice ->
+                viewModel.addDiscoveredDevice(discoveredDevice)
+            }
         }
     }
 }
