@@ -5,6 +5,7 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.activity.result.ActivityResultLauncher
 
 @SuppressLint("MissingPermission")
@@ -15,14 +16,20 @@ class BluetoothSupport(private val activity: Activity) {
         return bluetoothManager.adapter
     }
 
-    fun checkBluetoothSupport() {
+    fun checkBluetoothSupport(): Boolean {
         val bluetoothAdapter = getBluetoothAdapter()
 
         if(bluetoothAdapter == null){
             println("Device doesn't support Bluetooth")
-        } else {
-            println("Bluetooth is supported")
+            return false
         }
+        if (!activity.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)){
+            println("Device doesn't support Bluetooth Low Energy (BLE)")
+            return false
+        }
+
+        println("BLE is supported on this device")
+        return true
     }
 
     fun enableBluetooth(bluetoothAdapter: BluetoothAdapter?, launcher: ActivityResultLauncher<Intent>) {
