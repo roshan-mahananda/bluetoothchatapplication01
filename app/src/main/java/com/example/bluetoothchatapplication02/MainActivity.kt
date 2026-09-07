@@ -3,11 +3,15 @@ package com.example.bluetoothchatapplication02
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.bluetoothchatapplication02.bluetooth.BluetoothLeService
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothScanner
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothSupport
 import com.example.bluetoothchatapplication02.ui.components.BluetoothHeader
@@ -34,28 +39,33 @@ class MainActivity : ComponentActivity() {
     private lateinit var bluetoothScanner: BluetoothScanner
     private val viewModel: BluetoothViewModel by viewModels()
 
-    private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val action: String? = intent.action
-
-            if (android.bluetooth.BluetoothDevice.ACTION_FOUND == action) {
-
-                val androidDevice: android.bluetooth.BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(
-                        android.bluetooth.BluetoothDevice.EXTRA_DEVICE,
-                        android.bluetooth.BluetoothDevice::class.java
-                    )
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(android.bluetooth.BluetoothDevice.EXTRA_DEVICE)
+    // 1. Service Connection for BluetoothLeService
+    private var bluetoothService: BluetoothLeService? = null
+    private val serviceConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
+            bluetoothService = (service as BluetoothLeService.LocalBinder).getService()
+            bluetoothService?.let { bluetooth ->
+                if (!bluetooth.initialize()) {
+                    Log.e("MainActivity", "Unable to initialize Bluetooth")
+                    finish()
                 }
+            }
+        }
 
-                androidDevice?.let {
-                    val customDevice = com.example.bluetoothchatapplication02.model.BluetoothDevice(
-                        deviceName = it.name ?: "Unknown Device",
-                        deviceAddress = it.address
-                    )
-                    viewModel.addDiscoveredDevice(customDevice)
+        override fun onServiceDisconnected(componentName: ComponentName) {
+            bluetoothService = null
+        }
+    }
+
+    // 2. BroadcastReceiver to catch GATT connection updates from the Service
+    private val gattUpdateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                BluetoothLeService.ACTION_GATT_CONNECTED -> {
+                    viewModel.updateConnectionStatus("Connected")
+                }
+                BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
+                    viewModel.updateConnectionStatus("Disconnected")
                 }
             }
         }
@@ -83,11 +93,12 @@ class MainActivity : ComponentActivity() {
         bluetoothSupport = BluetoothSupport(this)
         bluetoothScanner = BluetoothScanner()
 
-        val filter = IntentFilter(android.bluetooth.BluetoothDevice.ACTION_FOUND)
-        registerReceiver(receiver, filter)
+        // Bind the BluetoothLeService
+        val gattServiceIntent = Intent(this, BluetoothLeService::class.java)
+        bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         val permissionsNeeded = mutableListOf<String>()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissionsNeeded += android.Manifest.permission.BLUETOOTH_CONNECT
             permissionsNeeded += android.Manifest.permission.BLUETOOTH_SCAN
         }
@@ -103,6 +114,9 @@ class MainActivity : ComponentActivity() {
             BluetoothChatApplication02Theme {
                 val pairedDevices by viewModel.pairedDevices.collectAsState()
                 val discoveredDevices by viewModel.discoveredDevices.collectAsState()
+
+                // You can pass this to your header or lists to show active status
+                val connectionStatus by viewModel.connectionStatus.collectAsState()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(
@@ -128,15 +142,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // 3. Register Receiver when UI is active
+    override fun onResume() {
+        super.onResume()
+        registerReceiver(gattUpdateReceiver, makeGattUpdateIntentFilter())
+    }
+
+    // 4. Unregister Receiver when UI goes to background
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(gattUpdateReceiver)
+    }
+
+    // 5. Clean up service binding
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(receiver)
+        unbindService(serviceConnection)
     }
 
     private fun initBluetoothFlow() {
-        bluetoothSupport.checkBluetoothSupport()
-        val adapter = bluetoothSupport.getBluetoothAdapter()
+        if (!bluetoothSupport.checkBluetoothSupport()) return
 
+        val adapter = bluetoothSupport.getBluetoothAdapter()
         if (adapter?.isEnabled == false) {
             bluetoothSupport.enableBluetooth(adapter, enableBluetoothLauncher)
         } else {
@@ -156,9 +183,21 @@ class MainActivity : ComponentActivity() {
     private fun startDiscovery() {
         val adapter = bluetoothSupport.getBluetoothAdapter()
         if (adapter != null) {
-            bluetoothScanner.scanLeDevice(adapter){ discoveredDevice ->
+            bluetoothScanner.scanLeDevice(adapter) { discoveredDevice ->
                 viewModel.addDiscoveredDevice(discoveredDevice)
             }
+        }
+    }
+
+    // Call this from a click listener in your DeviceCard to initiate connection
+    private fun connectToDevice(address: String) {
+        bluetoothService?.connect(address)
+    }
+
+    private fun makeGattUpdateIntentFilter(): IntentFilter {
+        return IntentFilter().apply {
+            addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
+            addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
         }
     }
 }

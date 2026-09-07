@@ -22,4 +22,11 @@ class BluetoothViewModel: ViewModel() {
             _discoverableDevices.value += device
         }
     }
+
+    private val _connectionStatus = MutableStateFlow<String>("Disconnected")
+    val connectionStatus: StateFlow<String> = _connectionStatus.asStateFlow()
+
+    fun updateConnectionStatus(status: String) {
+        _connectionStatus.value = status
+    }
 }

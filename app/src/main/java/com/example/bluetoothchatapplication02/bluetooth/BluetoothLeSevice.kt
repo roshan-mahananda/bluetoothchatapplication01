@@ -18,14 +18,25 @@ private const val TAG = "BluetoothLeService"
 
 @SuppressLint("MissingPermission")
 
-class BluetoothLeService : Service(){
+class BluetoothLeService : Service() {
+
+    companion object {
+        const val ACTION_GATT_CONNECTED =
+            "com.example.bluetoothchatapplication02.ACTION_GATT_CONNECTED"
+        const val ACTION_GATT_DISCONNECTED =
+            "com.example.bluetoothchatapplication02.ACTION_GATT_DISCONNECTED"
+        private const val STATE_DISCONNECTED = 0
+        private const val STATE_CONNECTED = 2
+    }
+
+    private var connectionState = STATE_DISCONNECTED
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothGatt: BluetoothGatt? = null
 
     private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
-        fun getService(): BluetoothLeService{
+        fun getService(): BluetoothLeService {
             return this@BluetoothLeService
         }
     }
@@ -42,6 +53,11 @@ class BluetoothLeService : Service(){
             return false
         }
         return true
+    }
+
+    private fun broadcastUpdate(action: String) {
+        val intent = Intent(action)
+        sendBroadcast(intent) //
     }
 
     fun connect(address: String): Boolean {
@@ -62,10 +78,14 @@ class BluetoothLeService : Service(){
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
-            if(newState == BluetoothProfile.STATE_CONNECTED){
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                connectionState = STATE_CONNECTED
+                broadcastUpdate(ACTION_GATT_CONNECTED) //
                 Log.i(TAG, "Successfully connected to GATT Server")
                 bluetoothGatt?.discoverServices()
-            }else if(newState == BluetoothProfile.STATE_DISCONNECTED){
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                connectionState = STATE_DISCONNECTED
+                broadcastUpdate(ACTION_GATT_DISCONNECTED) //
                 Log.i(TAG, "Disconnected from the GATT Server")
             }
         }
@@ -78,10 +98,16 @@ class BluetoothLeService : Service(){
             }
         }
     }
+    @SuppressLint("MissingPermission")
+    private fun close() {
+        bluetoothGatt?.let { gatt ->
+            gatt.close()
+            bluetoothGatt = null
+        }
+    }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        bluetoothGatt?.close()
-        bluetoothGatt = null
+        close()
         return super.onUnbind(intent)
     }
 }
