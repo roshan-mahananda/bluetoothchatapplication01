@@ -39,7 +39,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var bluetoothScanner: BluetoothScanner
     private val viewModel: BluetoothViewModel by viewModels()
 
-    // 1. Service Connection for BluetoothLeService
     private var bluetoothService: BluetoothLeService? = null
     private val serviceConnection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
@@ -57,7 +56,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 2. BroadcastReceiver to catch GATT connection updates from the Service
     private val gattUpdateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -142,19 +140,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 3. Register Receiver when UI is active
     override fun onResume() {
         super.onResume()
         registerReceiver(gattUpdateReceiver, makeGattUpdateIntentFilter())
     }
 
-    // 4. Unregister Receiver when UI goes to background
     override fun onPause() {
         super.onPause()
         unregisterReceiver(gattUpdateReceiver)
     }
 
-    // 5. Clean up service binding
     override fun onDestroy() {
         super.onDestroy()
         unbindService(serviceConnection)
@@ -189,7 +184,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Call this from a click listener in your DeviceCard to initiate connection
     private fun connectToDevice(address: String) {
         bluetoothService?.connect(address)
     }

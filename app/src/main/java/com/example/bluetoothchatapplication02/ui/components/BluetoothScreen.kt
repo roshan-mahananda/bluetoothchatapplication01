@@ -1,112 +1,203 @@
 package com.example.bluetoothchatapplication02.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bluetoothchatapplication02.model.BluetoothDevice
+import com.example.bluetoothchatapplication02.R
+
+val BluePrimary = Color(0xFF1877F2)
+val CardBackground = Color(0xFFF5F7FA)
 
 @Composable
-fun BluetoothHeader(modifier: Modifier = Modifier) {
-    Row(
+fun HopLinkHeader(modifier: Modifier = Modifier) {
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(bottom = 24.dp)
     ) {
         Text(
-            text = "Bluetooth Chat App",
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp
+            text = "HopLink",
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 32.sp,
+            color = Color.Black
         )
-    }
-}
-
-@Composable
-fun PairedDeviceList(modifier: Modifier = Modifier, devices: List<BluetoothDevice>) {
-    Column(modifier = modifier) {
         Text(
-            text = "Paired Devices",
-            fontWeight = FontWeight.Bold,
-            modifier = modifier.padding(bottom = 8.dp)
+            text = "Works without internet or signal",
+            color = Color.Gray,
+            fontSize = 16.sp
         )
-        if (devices.isEmpty()) {
-            Text(text = "No paired devices found.", color = Color.Gray)
-        } else {
-            LazyColumn {
-                items(devices) { device ->
-                    DeviceCard(device)
-                }
-            }
-        }
     }
 }
 
 @Composable
-fun DeviceCard(device: BluetoothDevice) {
+fun MainToggleCard(isBluetoothOn: Boolean, onToggle: (Boolean) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .padding(bottom = 16.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = BluePrimary)
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(24.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = device.deviceName,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-            Text(
-                text = device.deviceAddress,
-                color = Color.Gray,
-                fontSize = 12.sp
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isBluetoothOn) "HopLink is ON" else "HopLink is OFF",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+                Text(
+                    text = "You are visible to nearby devices",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Switch(
+                checked = isBluetoothOn,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = BluePrimary,
+                    checkedTrackColor = Color.White,
+                    uncheckedThumbColor = Color.LightGray,
+                    uncheckedTrackColor = Color.DarkGray
+                )
             )
         }
     }
 }
-@Composable
-fun DiscoveredDeviceList(
-    modifier: Modifier = Modifier,
-    devices: List<BluetoothDevice>,
-    onScanClick: () -> Unit
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = "Discovered Devices",
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp, top = 16.dp) // Added top padding for spacing
-        )
 
-        if (devices.isEmpty()) {
-            Text(
-                text = "No devices discovered yet. Press scan to search.",
-                color = Color.Gray
-            )
-        } else {
-            LazyColumn {
-                items(devices) { device ->
-                    // Reusing your existing DeviceCard perfectly!
-                    DeviceCard(device)
-                }
+@Composable
+fun DashboardCard(
+    title: String,
+    subtitle: String,
+    icon: Painter, // Swapped ImageVector for Painter
+    iconBgColor: Color,
+    badgeText: String,
+    badgeBgColor: Color,
+    badgeTextColor: Color = Color.White,
+    isCircleBadge: Boolean = false
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconBgColor),
+                contentAlignment = Alignment.Center
+            ) {
+                // Swapped imageVector for painter.
+                // Note: Use tint = Color.Unspecified if your image already has its own colors!
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = Color.Unspecified
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.Black
+                )
+                Text(
+                    text = subtitle,
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(if (isCircleBadge) CircleShape else RoundedCornerShape(12.dp))
+                    .background(badgeBgColor)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = badgeText,
+                    color = badgeTextColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
         }
+    }
+}
+
+@Composable
+fun HopLinkDashboardScreen(
+    discoveredCount: Int,
+    isBluetoothOn: Boolean,
+    onToggleBluetooth: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        HopLinkHeader()
+        MainToggleCard(isBluetoothOn = isBluetoothOn, onToggle = onToggleBluetooth)
+
+        DashboardCard(
+            title = "Nearby Devices",
+            subtitle = "Scanning via\nBluetooth",
+            icon = painterResource(R.drawable.nearby_24px),
+            iconBgColor = Color(0xFFE8F0FE),
+            badgeText = discoveredCount.toString(),
+            badgeBgColor = BluePrimary,
+            isCircleBadge = true
+        )
+
+        DashboardCard(
+            title = "Relay Active",
+            subtitle = "You are forwarding\n2 messages",
+            icon = painterResource(R.drawable.schedule_send_24px),
+            iconBgColor = Color(0xFFE6F4EA),
+            badgeText = "ON",
+            badgeBgColor = Color(0xFF34A853)
+        )
+
+        DashboardCard(
+            title = "Messages Queued",
+            subtitle = "Waiting for a relay\npath",
+            icon = painterResource(id = android.R.drawable.ic_menu_recent_history),
+            iconBgColor = Color(0xFFFFF3E0),
+            badgeText = "11",
+            badgeBgColor = Color(0xFFE0E0E0),
+            badgeTextColor = Color.Gray
+        )
     }
 }
