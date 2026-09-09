@@ -2,10 +2,17 @@ package com.example.bluetoothchatapplication02.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -13,13 +20,238 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bluetoothchatapplication02.R
+import com.example.bluetoothchatapplication02.model.BluetoothDevice
 
 val BluePrimary = Color(0xFF1877F2)
 val CardBackground = Color(0xFFF5F7FA)
+
+sealed class Screen(val route: String, val title: String, val iconResId: Int) {
+    object Home : Screen(route = "home", title = "Home", iconResId = R.drawable.home_24px)
+    object Discover : Screen(route = "discover", title = "Discover", iconResId = R.drawable.nearby_24px)
+    object Chats : Screen(route = "chats", title = "Chats", iconResId = R.drawable.sms_24px)
+    object SOS : Screen(route = "sos", title = "SOS", iconResId = R.drawable.sos_24px)
+}
+
+@Composable
+fun HopLinkBottomNav(currentRoute: String, onItemSelected: (Screen) -> Unit) {
+    val items = listOf(Screen.Home, Screen.Discover, Screen.Chats, Screen.SOS)
+
+    NavigationBar(
+        containerColor = Color.White,
+        tonalElevation = 8.dp
+    ) {
+        items.forEach { screen ->
+            NavigationBarItem(
+                icon = {
+                    Icon(
+                        painter = painterResource(id = screen.iconResId),
+                        contentDescription = screen.title
+                    )
+                },
+                label = { Text(screen.title, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                selected = currentRoute == screen.route,
+                onClick = { onItemSelected(screen) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = BluePrimary,
+                    selectedTextColor = BluePrimary,
+                    unselectedIconColor = Color.Gray,
+                    unselectedTextColor = Color.Gray,
+                    indicatorColor = Color(0xFFE8F0FE)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun SosScreen(onTriggerSos: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(160.dp)
+                .background(Color(0xFFFF4D4D), shape = RoundedCornerShape(80.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            IconButton(onClick = onTriggerSos) {
+                Text(
+                    text = "SOS",
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 36.sp
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Emergency Broadcast",
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            color = Color.Black
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Tap to instantly flood nearby mesh nodes with your GPS and emergency status without internet.",
+            color = Color.Gray,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    }
+}
+
+@Composable
+fun ChatScreen() {
+    var messageText by remember { mutableStateOf("") }
+    val chatMessages = remember { mutableStateListOf("Emergency broadcast node initialized.", "Relay path open to Node #2.") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "HopLink Direct Chat",
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp,
+            color = Color.Black,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(chatMessages) { message ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = CardBackground
+                    ) {
+                        Text(
+                            text = message,
+                            modifier = Modifier.padding(12.dp),
+                            color = Color.DarkGray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = messageText,
+                onValueChange = { messageText = it },
+                placeholder = { Text("Type emergency text...") },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Button(
+                onClick = {
+                    if (messageText.isNotBlank()) {
+                        chatMessages.add(messageText)
+                        messageText = ""
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Send")
+            }
+        }
+    }
+}
+
+@Composable
+fun DiscoverScreen(
+    devices: List<BluetoothDevice>,
+    onDeviceClick: (BluetoothDevice) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Discovered Mesh Nodes",
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp,
+            color = Color.Black,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        if (devices.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "Scanning for nearby HopLink nodes...", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(devices) { device ->
+                    Card(
+                        onClick = { onDeviceClick(device) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = CardBackground)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = device.deviceName,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color.Black
+                                )
+                                Text(
+                                    text = device.deviceAddress,
+                                    color = Color.Gray,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Button(
+                                onClick = { onDeviceClick(device) },
+                                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Connect", color = Color.White, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun HopLinkHeader(modifier: Modifier = Modifier) {
