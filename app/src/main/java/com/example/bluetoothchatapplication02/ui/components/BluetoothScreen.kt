@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bluetoothchatapplication02.R
@@ -89,7 +90,7 @@ fun MainToggleCard(isBluetoothOn: Boolean, onToggle: (Boolean) -> Unit) {
 fun DashboardCard(
     title: String,
     subtitle: String,
-    icon: Painter, // Swapped ImageVector for Painter
+    icon: Painter,
     iconBgColor: Color,
     badgeText: String,
     badgeBgColor: Color,
@@ -117,8 +118,6 @@ fun DashboardCard(
                     .background(iconBgColor),
                 contentAlignment = Alignment.Center
             ) {
-                // Swapped imageVector for painter.
-                // Note: Use tint = Color.Unspecified if your image already has its own colors!
                 Icon(
                     painter = icon,
                     contentDescription = null,
@@ -165,6 +164,8 @@ fun DashboardCard(
 fun HopLinkDashboardScreen(
     discoveredCount: Int,
     isBluetoothOn: Boolean,
+    activeRelaysCount: Int,
+    queuedMessagesCount: Int,
     onToggleBluetooth: (Boolean) -> Unit
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
@@ -173,31 +174,31 @@ fun HopLinkDashboardScreen(
 
         DashboardCard(
             title = "Nearby Devices",
-            subtitle = "Scanning via\nBluetooth",
+            subtitle = if (isBluetoothOn) "Scanning via\nBluetooth" else "Bluetooth is off",
             icon = painterResource(R.drawable.nearby_24px),
             iconBgColor = Color(0xFFE8F0FE),
             badgeText = discoveredCount.toString(),
-            badgeBgColor = BluePrimary,
+            badgeBgColor = if (discoveredCount > 0) BluePrimary else Color.LightGray,
             isCircleBadge = true
         )
 
         DashboardCard(
             title = "Relay Active",
-            subtitle = "You are forwarding\n2 messages",
+            subtitle = if (activeRelaysCount > 0) "You are forwarding\n$activeRelaysCount messages" else "No active relays",
             icon = painterResource(R.drawable.schedule_send_24px),
             iconBgColor = Color(0xFFE6F4EA),
-            badgeText = "ON",
-            badgeBgColor = Color(0xFF34A853)
+            badgeText = if (activeRelaysCount > 0) "ON" else "OFF",
+            badgeBgColor = if (activeRelaysCount > 0) Color(0xFF34A853) else Color.LightGray
         )
 
         DashboardCard(
             title = "Messages Queued",
-            subtitle = "Waiting for a relay\npath",
-            icon = painterResource(id = android.R.drawable.ic_menu_recent_history),
+            subtitle = if (queuedMessagesCount > 0) "Waiting for a relay\npath" else "Queue is empty",
+            icon = painterResource(R.drawable.message_queue),
             iconBgColor = Color(0xFFFFF3E0),
-            badgeText = "11",
-            badgeBgColor = Color(0xFFE0E0E0),
-            badgeTextColor = Color.Gray
+            badgeText = queuedMessagesCount.toString(),
+            badgeBgColor = if (queuedMessagesCount > 0) Color(0xFFE0E0E0) else Color(0xFFE0E0E0),
+            badgeTextColor = if (queuedMessagesCount > 0) Color.White else Color.Gray
         )
     }
 }

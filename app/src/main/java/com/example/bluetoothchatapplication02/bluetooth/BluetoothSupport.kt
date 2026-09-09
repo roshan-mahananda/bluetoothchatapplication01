@@ -38,4 +38,7 @@ class BluetoothSupport(private val activity: Activity) {
             launcher.launch(enableBtIntent)
         }
     }
+    fun enableBluetoothDirect(bluetoothAdapter: BluetoothAdapter?): Boolean{
+        return bluetoothAdapter?.enable() ?: false
+    }
 }

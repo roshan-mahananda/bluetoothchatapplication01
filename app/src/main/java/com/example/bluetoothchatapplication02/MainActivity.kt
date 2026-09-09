@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 import android.os.IBinder
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -21,14 +22,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothLeService
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothScanner
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothSupport
-import com.example.bluetoothchatapplication02.ui.components.BluetoothHeader
-import com.example.bluetoothchatapplication02.ui.components.DiscoveredDeviceList
-import com.example.bluetoothchatapplication02.ui.components.PairedDeviceList
+import com.example.bluetoothchatapplication02.ui.components.HopLinkDashboardScreen
 import com.example.bluetoothchatapplication02.ui.theme.BluetoothChatApplication02Theme
 import com.example.bluetoothchatapplication02.viewmodel.BluetoothViewModel
 
@@ -38,7 +40,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var bluetoothSupport: BluetoothSupport
     private lateinit var bluetoothScanner: BluetoothScanner
     private val viewModel: BluetoothViewModel by viewModels()
-
     private var bluetoothService: BluetoothLeService? = null
     private val serviceConnection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
                 BluetoothLeService.ACTION_GATT_CONNECTED -> {
                     viewModel.updateConnectionStatus("Connected")
                 }
+
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
                     viewModel.updateConnectionStatus("Disconnected")
                 }
@@ -72,7 +74,10 @@ class MainActivity : ComponentActivity() {
     private val enableBluetoothLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) fetchPairedDevices()
+        if (result.resultCode == Activity.RESULT_OK) {
+            fetchPairedDevices()
+            startDiscovery()
+        }
     }
 
     private val requestBtPermission = registerForActivityResult(
@@ -81,7 +86,7 @@ class MainActivity : ComponentActivity() {
         if (grants.values.all { it }) {
             initBluetoothFlow()
         } else {
-            println("Bluetooth Permission Denied")
+            Log.e("MainActivity", "Bluetooth Permission Denied")
         }
     }
 
@@ -110,28 +115,39 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BluetoothChatApplication02Theme {
-                val pairedDevices by viewModel.pairedDevices.collectAsState()
                 val discoveredDevices by viewModel.discoveredDevices.collectAsState()
+                val activeRelays by viewModel.activeRelays.collectAsState()
+                val queuedMessages by viewModel.queuedMessages.collectAsState()
 
-                // You can pass this to your header or lists to show active status
-                val connectionStatus by viewModel.connectionStatus.collectAsState()
+                var isHopLinkOn by remember {
+                    mutableStateOf(bluetoothSupport.getBluetoothAdapter()?.isEnabled == true)
+                }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(
                         modifier = Modifier
                             .padding(innerPadding)
-                            .padding(16.dp)
+                            .padding(horizontal = 16.dp)
                     ) {
-                        BluetoothHeader()
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        PairedDeviceList(devices = pairedDevices)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        DiscoveredDeviceList(
-                            devices = discoveredDevices,
-                            onScanClick = {
-                                startDiscovery()
+                        HopLinkDashboardScreen(
+                            discoveredCount = discoveredDevices.size,
+                            isBluetoothOn = isHopLinkOn,
+                            activeRelaysCount = activeRelays,
+                            queuedMessagesCount = queuedMessages,
+                            onToggleBluetooth = { isOn ->
+                                isHopLinkOn = isOn
+                                val adapter = bluetoothSupport.getBluetoothAdapter()
+                                if (isOn) {
+                                    if (adapter?.isEnabled == false) {
+                                        bluetoothSupport.enableBluetoothDirect(adapter)
+                                    }
+                                    viewModel.clearDiscoveredDevices()
+                                    startDiscovery()
+                                }else{
+                                    if(adapter?.isEnabled == true){
+                                        adapter.disable()
+                                    }
+                                }
                             }
                         )
                     }
@@ -142,7 +158,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(gattUpdateReceiver, makeGattUpdateIntentFilter())
+        ContextCompat.registerReceiver(
+            this,
+            gattUpdateReceiver,
+            makeGattUpdateIntentFilter(),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onPause() {
@@ -159,9 +180,8 @@ class MainActivity : ComponentActivity() {
         if (!bluetoothSupport.checkBluetoothSupport()) return
 
         val adapter = bluetoothSupport.getBluetoothAdapter()
-        if (adapter?.isEnabled == false) {
-            bluetoothSupport.enableBluetooth(adapter, enableBluetoothLauncher)
-        } else {
+
+        if (adapter?.isEnabled == true) {
             fetchPairedDevices()
             startDiscovery()
         }

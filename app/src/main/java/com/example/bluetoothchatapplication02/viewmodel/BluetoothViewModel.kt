@@ -6,27 +6,42 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class BluetoothViewModel: ViewModel() {
+class BluetoothViewModel : ViewModel() {
     private val _pairedDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
-    val pairedDevices: StateFlow<List<BluetoothDevice>> = _pairedDevices.asStateFlow()
-
     private val _discoverableDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
-    val discoveredDevices: StateFlow<List<BluetoothDevice>> = _discoverableDevices.asStateFlow()
+    private val _connectionStatus = MutableStateFlow("Disconnected")
+    private val _activeRelays = MutableStateFlow(0)
+    private val _queuedMessages = MutableStateFlow(0)
 
-    fun updatePairedDevices(devices: List<BluetoothDevice>){
+    val pairedDevices: StateFlow<List<BluetoothDevice>> = _pairedDevices.asStateFlow()
+    val discoveredDevices: StateFlow<List<BluetoothDevice>> = _discoverableDevices.asStateFlow()
+    val connectionStatus: StateFlow<String> = _connectionStatus.asStateFlow()
+    val activeRelays: StateFlow<Int> = _activeRelays.asStateFlow()
+    val queuedMessages: StateFlow<Int> = _queuedMessages.asStateFlow()
+
+    fun updatePairedDevices(devices: List<BluetoothDevice>) {
         _pairedDevices.value = devices
     }
 
-    fun addDiscoveredDevice(device: BluetoothDevice){
-        if(!_discoverableDevices.value.any{it.deviceAddress == device.deviceAddress}){
+    fun addDiscoveredDevice(device: BluetoothDevice) {
+        if (!_discoverableDevices.value.any { it.deviceAddress == device.deviceAddress }) {
             _discoverableDevices.value += device
         }
     }
 
-    private val _connectionStatus = MutableStateFlow<String>("Disconnected")
-    val connectionStatus: StateFlow<String> = _connectionStatus.asStateFlow()
+    fun clearDiscoveredDevices() {
+        _discoverableDevices.value = emptyList()
+    }
 
     fun updateConnectionStatus(status: String) {
         _connectionStatus.value = status
+    }
+
+    fun updateActiveRelays(count: Int) {
+        _activeRelays.value = count
+    }
+
+    fun updateQueuedMessages(count: Int) {
+        _queuedMessages.value = count
     }
 }
