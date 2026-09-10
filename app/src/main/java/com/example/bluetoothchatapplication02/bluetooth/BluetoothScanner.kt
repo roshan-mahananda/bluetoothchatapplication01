@@ -51,6 +51,10 @@ class BluetoothScanner {
             }
         }
 
+        val settings = android.bluetooth.le.ScanSettings.Builder()
+            .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+
         handler.postDelayed({
             if (scanning) {
                 scanning = false
@@ -60,7 +64,7 @@ class BluetoothScanner {
         }, SCAN_PERIOD)
 
         scanning = true
-        bluetoothLeScanner.startScan(leScanCallback)
+        bluetoothLeScanner.startScan(null, settings, leScanCallback)
     }
 
     fun stopScan(bluetoothAdapter: BluetoothAdapter?) {

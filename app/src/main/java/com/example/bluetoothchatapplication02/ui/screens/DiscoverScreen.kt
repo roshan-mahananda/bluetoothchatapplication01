@@ -39,49 +39,72 @@ fun DiscoverScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "Scanning for nearby HopLink nodes & paired devices...", color = Color.Gray)
+                Text(text = "Scanning for nearby HopLink nodes...", color = Color.Gray)
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(devices) { device ->
-                    Card(
-                        onClick = { onDeviceClick(device) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = CardBackground)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = device.deviceName,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = Color.Black
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = device.deviceAddress,
-                                    color = Color.Gray,
-                                    fontSize = 12.sp
-                                )
-                            }
+                    DeviceCard(device = device, onDeviceClick = onDeviceClick)
+                }
+            }
+        }
+    }
+}
 
-                            Button(
-                                onClick = { onDeviceClick(device) },
-                                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Connect", color = Color.White, fontSize = 12.sp)
-                            }
-                        }
+@Composable
+fun DeviceCard(
+    device: BluetoothDevice,
+    onDeviceClick: (BluetoothDevice) -> Unit
+) {
+    Card(
+        onClick = { onDeviceClick(device) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = device.deviceName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color.Black
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFE8F0FE)
+                    ) {
+                        Text(
+                            text = "BLE Node",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BluePrimary
+                        )
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = device.deviceAddress,
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+
+            Button(
+                onClick = { onDeviceClick(device) },
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Connect", color = Color.White, fontSize = 12.sp)
             }
         }
     }
