@@ -1,6 +1,8 @@
 package com.example.bluetoothchatapplication02.viewmodel
 
+import android.bluetooth.BluetoothAdapter
 import androidx.lifecycle.ViewModel
+import com.example.bluetoothchatapplication02.bluetooth.BluetoothScanner
 import com.example.bluetoothchatapplication02.model.BluetoothDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,18 +21,25 @@ class BluetoothViewModel : ViewModel() {
     val activeRelays: StateFlow<Int> = _activeRelays.asStateFlow()
     val queuedMessages: StateFlow<Int> = _queuedMessages.asStateFlow()
 
-    fun updatePairedDevices(devices: List<BluetoothDevice>) {
-        _pairedDevices.value = devices
+    fun addDiscoveredDevice(device: BluetoothDevice) {
+        val currentList = _discoverableDevices.value
+        if (!currentList.any { it.deviceAddress == device.deviceAddress }) {
+            _discoverableDevices.value = currentList + device
+        }
     }
 
-    fun addDiscoveredDevice(device: BluetoothDevice) {
-        if (!_discoverableDevices.value.any { it.deviceAddress == device.deviceAddress }) {
-            _discoverableDevices.value += device
-        }
+    fun loadPairedDevices(bluetoothAdapter: BluetoothAdapter, scanner: BluetoothScanner) {
+        val pairedList = scanner.findPairedDevices(bluetoothAdapter)
+        _pairedDevices.value = pairedList
+
+        val currentDiscovered = _discoverableDevices.value
+        val combined = (pairedList + currentDiscovered).distinctBy { it.deviceAddress }
+        _discoverableDevices.value = combined
     }
 
     fun clearDiscoveredDevices() {
         _discoverableDevices.value = emptyList()
+        _pairedDevices.value = emptyList()
     }
 
     fun updateConnectionStatus(status: String) {

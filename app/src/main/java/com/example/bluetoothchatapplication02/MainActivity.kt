@@ -1,6 +1,7 @@
 package com.example.bluetoothchatapplication02
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -14,12 +15,14 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothLeService
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothScanner
@@ -57,16 +60,39 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Tracks both GATT events and system-wide Bluetooth adapter state changes
     private val gattUpdateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothLeService.ACTION_GATT_CONNECTED -> {
                     viewModel.updateConnectionStatus("Connected")
                 }
+
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
                     viewModel.updateConnectionStatus("Disconnected")
                 }
+
+                android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED -> {
+                    val state = intent.getIntExtra(
+                        android.bluetooth.BluetoothAdapter.EXTRA_STATE,
+                        android.bluetooth.BluetoothAdapter.ERROR
+                    )
+                    if (state == android.bluetooth.BluetoothAdapter.STATE_OFF) {
+                        viewModel.clearDiscoveredDevices()
+                    }
+                }
             }
+        }
+    }
+
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.clearDiscoveredDevices()
+            startDiscovery()
+        } else {
+            Log.e("MainActivity", "User declined to enable Bluetooth")
         }
     }
 
@@ -75,6 +101,8 @@ class MainActivity : ComponentActivity() {
 
         bluetoothSupport = BluetoothSupport(this)
         bluetoothScanner = BluetoothScanner()
+
+        requestBluetoothPermissions()
 
         val gattServiceIntent = Intent(this, BluetoothLeService::class.java)
         bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -90,7 +118,6 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(bluetoothSupport.getBluetoothAdapter()?.isEnabled == true)
                 }
 
-                // Track current active screen for bottom navigation
                 var currentRoute by remember { mutableStateOf(Screen.Home.route) }
 
                 Scaffold(
@@ -118,16 +145,21 @@ class MainActivity : ComponentActivity() {
                                         val adapter = bluetoothSupport.getBluetoothAdapter()
                                         if (isOn) {
                                             if (adapter?.isEnabled == false) {
-                                                bluetoothSupport.enableBluetoothDirect(adapter)
+                                                bluetoothSupport.requestEnableBluetooth(
+                                                    enableBluetoothLauncher
+                                                )
+                                            } else {
+                                                viewModel.clearDiscoveredDevices()
+                                                startDiscovery()
                                             }
-                                            viewModel.clearDiscoveredDevices()
-                                            startDiscovery()
                                         } else {
-                                            adapter?.disable()
+                                            bluetoothScanner.stopScan(adapter)
+                                            viewModel.clearDiscoveredDevices()
                                         }
                                     }
                                 )
                             }
+
                             Screen.Discover.route -> {
                                 DiscoverScreen(
                                     devices = discoveredDevices,
@@ -137,6 +169,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             }
+
                             Screen.Chats.route -> {
                                 ChatScreen(
                                     onSendMessage = { message ->
@@ -144,6 +177,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             }
+
                             Screen.SOS.route -> {
                                 SosScreen(
                                     onTriggerSos = {
@@ -176,14 +210,38 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unbindService(serviceConnection)
+        val adapter = bluetoothSupport.getBluetoothAdapter()
+        bluetoothScanner.stopScan(adapter)
     }
 
     private fun startDiscovery() {
         val adapter = bluetoothSupport.getBluetoothAdapter()
-        if (adapter != null) {
+        if (adapter != null && adapter.isEnabled) {
+            viewModel.loadPairedDevices(adapter, bluetoothScanner)
             bluetoothScanner.scanLeDevice(adapter) { discoveredDevice ->
                 viewModel.addDiscoveredDevice(discoveredDevice)
             }
+        }
+    }
+
+    private fun requestBluetoothPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    android.Manifest.permission.BLUETOOTH_SCAN,
+                    android.Manifest.permission.BLUETOOTH_CONNECT
+                ),
+                100
+            )
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                ),
+                100
+            )
         }
     }
 
@@ -191,6 +249,7 @@ class MainActivity : ComponentActivity() {
         return IntentFilter().apply {
             addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
             addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
+            addAction(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED) // Listens for system Bluetooth changes
         }
     }
 }

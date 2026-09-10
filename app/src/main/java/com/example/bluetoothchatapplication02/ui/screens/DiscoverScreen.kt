@@ -39,7 +39,7 @@ fun DiscoverScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "Scanning for nearby HopLink nodes...", color = Color.Gray)
+                Text(text = "Scanning for nearby HopLink nodes & paired devices...", color = Color.Gray)
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -57,19 +57,21 @@ fun DiscoverScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = device.deviceName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                     color = Color.Black
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = device.deviceAddress,
                                     color = Color.Gray,
                                     fontSize = 12.sp
                                 )
                             }
+
                             Button(
                                 onClick = { onDeviceClick(device) },
                                 colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),

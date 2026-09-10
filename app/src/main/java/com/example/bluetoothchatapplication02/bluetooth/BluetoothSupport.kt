@@ -32,12 +32,12 @@ class BluetoothSupport(private val activity: Activity) {
         return true
     }
 
-    fun enableBluetooth(bluetoothAdapter: BluetoothAdapter?, launcher: ActivityResultLauncher<Intent>) {
-        if(bluetoothAdapter?.isEnabled == false){
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            launcher.launch(enableBtIntent)
-        }
+    @SuppressLint("MissingPermission")
+    fun requestEnableBluetooth(launcher: androidx.activity.result.ActivityResultLauncher<Intent>) {
+        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        launcher.launch(enableBtIntent)
     }
+
     fun enableBluetoothDirect(bluetoothAdapter: BluetoothAdapter?): Boolean{
         return bluetoothAdapter?.enable() ?: false
     }
