@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.bluetoothchatapplication02.bluetooth.BluetoothAdvertiser
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothLeService
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothScanner
 import com.example.bluetoothchatapplication02.bluetooth.BluetoothSupport
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var bluetoothSupport: BluetoothSupport
     private lateinit var bluetoothScanner: BluetoothScanner
+    private lateinit var bluetoothAdvertiser: BluetoothAdvertiser
     private val viewModel: BluetoothViewModel by viewModels()
 
     private var bluetoothService: BluetoothLeService? = null
@@ -60,7 +62,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Tracks both GATT events and system-wide Bluetooth adapter state changes
     private val gattUpdateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -101,6 +102,7 @@ class MainActivity : ComponentActivity() {
 
         bluetoothSupport = BluetoothSupport(this)
         bluetoothScanner = BluetoothScanner()
+        bluetoothAdvertiser = BluetoothAdvertiser()
 
         requestBluetoothPermissions()
 
@@ -145,15 +147,14 @@ class MainActivity : ComponentActivity() {
                                         val adapter = bluetoothSupport.getBluetoothAdapter()
                                         if (isOn) {
                                             if (adapter?.isEnabled == false) {
-                                                bluetoothSupport.requestEnableBluetooth(
-                                                    enableBluetoothLauncher
-                                                )
+                                                bluetoothSupport.requestEnableBluetooth(enableBluetoothLauncher)
                                             } else {
                                                 viewModel.clearDiscoveredDevices()
                                                 startDiscovery()
                                             }
                                         } else {
                                             bluetoothScanner.stopScan(adapter)
+                                            bluetoothAdvertiser.stopAdvertising(adapter)
                                             viewModel.clearDiscoveredDevices()
                                         }
                                     }
@@ -212,11 +213,13 @@ class MainActivity : ComponentActivity() {
         unbindService(serviceConnection)
         val adapter = bluetoothSupport.getBluetoothAdapter()
         bluetoothScanner.stopScan(adapter)
+        bluetoothAdvertiser.stopAdvertising(adapter)
     }
 
     private fun startDiscovery() {
         val adapter = bluetoothSupport.getBluetoothAdapter()
         if (adapter != null && adapter.isEnabled) {
+            bluetoothAdvertiser.startAdvertising(adapter)
             bluetoothScanner.scanLeDevice(adapter) { discoveredDevice ->
                 viewModel.addDiscoveredDevice(discoveredDevice)
             }
@@ -229,7 +232,8 @@ class MainActivity : ComponentActivity() {
                 this,
                 arrayOf(
                     android.Manifest.permission.BLUETOOTH_SCAN,
-                    android.Manifest.permission.BLUETOOTH_CONNECT
+                    android.Manifest.permission.BLUETOOTH_CONNECT,
+                    android.Manifest.permission.BLUETOOTH_ADVERTISE // <-- Add this line
                 ),
                 100
             )
