@@ -157,6 +157,9 @@ class MainActivity : ComponentActivity() {
                                             bluetoothAdvertiser.stopAdvertising(adapter)
                                             viewModel.clearDiscoveredDevices()
                                         }
+                                    },
+                                    onDiscoverClick = {
+                                        currentRoute = Screen.Discover.route
                                     }
                                 )
                             }

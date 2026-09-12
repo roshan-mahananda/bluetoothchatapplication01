@@ -1,6 +1,7 @@
 package com.example.bluetoothchatapplication02.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -93,12 +94,14 @@ fun DashboardCard(
     badgeText: String,
     badgeBgColor: Color,
     badgeTextColor: Color = Color.White,
-    isCircleBadge: Boolean = false
+    isCircleBadge: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = CardBackground),
         elevation = CardDefaults.cardElevation(0.dp)
@@ -164,7 +167,8 @@ fun HopLinkDashboardScreen(
     isBluetoothOn: Boolean,
     activeRelaysCount: Int,
     queuedMessagesCount: Int,
-    onToggleBluetooth: (Boolean) -> Unit
+    onToggleBluetooth: (Boolean) -> Unit,
+    onDiscoverClick: () -> Unit
 ) {
     Column(modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
         HopLinkHeader()
@@ -177,7 +181,8 @@ fun HopLinkDashboardScreen(
             iconBgColor = Color(0xFFE8F0FE),
             badgeText = discoveredCount.toString(),
             badgeBgColor = if (discoveredCount > 0) BluePrimary else Color.LightGray,
-            isCircleBadge = true
+            isCircleBadge = true,
+            onClick = onDiscoverClick
         )
 
         DashboardCard(
