@@ -42,14 +42,21 @@ class BluetoothScanner {
         leScanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
-                val androidDevice = result.device
+
+                val address = result.device.address
+                val uniqueId = address.takeLast(5).replace(":", "")
+
                 val customDevice = BluetoothDevice(
-                    deviceName = androidDevice.name?.takeIf { it.isNotBlank() } ?: "Unknown BLE Device",
-                    deviceAddress = androidDevice.address
+                    deviceName = "HopNode-$uniqueId",
+                    deviceAddress = address
                 )
                 onDeviceFound(customDevice)
             }
         }
+
+        val filter = android.bluetooth.le.ScanFilter.Builder()
+            .setServiceUuid(HopLinkConfig.SERVICE_UUID)
+            .build()
 
         val settings = android.bluetooth.le.ScanSettings.Builder()
             .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
@@ -64,9 +71,10 @@ class BluetoothScanner {
         }, SCAN_PERIOD)
 
         scanning = true
-        bluetoothLeScanner.startScan(null, settings, leScanCallback)
+        bluetoothLeScanner.startScan(listOf(filter), settings, leScanCallback)
     }
 
+    @SuppressLint("MissingPermission")
     fun stopScan(bluetoothAdapter: BluetoothAdapter?) {
         val bluetoothLeScanner = bluetoothAdapter?.bluetoothLeScanner ?: return
         if (scanning) {

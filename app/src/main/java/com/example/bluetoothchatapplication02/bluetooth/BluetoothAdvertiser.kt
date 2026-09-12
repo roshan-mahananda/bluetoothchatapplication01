@@ -24,6 +24,7 @@ class BluetoothAdvertiser {
             .build()
 
         val data = AdvertiseData.Builder()
+            .addServiceUuid(HopLinkConfig.SERVICE_UUID)
             .setIncludeDeviceName(false)
             .build()
 
