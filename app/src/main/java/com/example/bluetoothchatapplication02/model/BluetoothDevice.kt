@@ -1,6 +1,7 @@
 package com.example.bluetoothchatapplication02.model
 
 data class BluetoothDevice(
+    val deviceAddress: String,
     val deviceName: String,
-    val deviceAddress: String
+    var userAlias: String? = null
 )

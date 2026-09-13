@@ -69,52 +69,36 @@ class BluetoothLeService : Service() {
     }
 
     fun readCharacteristic(characteristic: BluetoothGattCharacteristic) {
-        bluetoothAdapter?.let {
-            bluetoothGatt?.let { gatt ->
-                gatt.readCharacteristic(characteristic)
-            } ?: run {
-                Log.w(TAG, "BluetoothGatt not initialized")
-            }
-        } ?: run {
-            Log.w(TAG, "BluetoothAdapter not initialized")
-        }
+        bluetoothGatt?.readCharacteristic(characteristic)
     }
 
     fun writeCharacteristic(characteristic: BluetoothGattCharacteristic, payload: ByteArray) {
-        bluetoothAdapter?.let {
-            bluetoothGatt?.let { gatt ->
-                characteristic.value = payload
-                characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                gatt.writeCharacteristic(characteristic)
-            } ?: run {
-                Log.w(TAG, "BluetoothGatt not initialized")
+        characteristic.value = payload
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        bluetoothGatt?.writeCharacteristic(characteristic)
+    }
+
+    private fun writeMessageToCharacteristic(gatt: BluetoothGatt?, message: String) {
+        val services = gatt?.services ?: return
+        for (service in services) {
+            for (characteristic in service.characteristics) {
+                val isWritable = (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 ||
+                        (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
+                if (isWritable) {
+                    writeCharacteristic(characteristic, message.toByteArray(Charsets.UTF_8))
+                    return
+                }
             }
-        } ?: run {
-            Log.w(TAG, "BluetoothAdapter not initialized")
         }
     }
 
     fun setCharacteristicNotification(characteristic: BluetoothGattCharacteristic, enabled: Boolean) {
-        bluetoothAdapter?.let {
-            bluetoothGatt?.let { gatt ->
-                gatt.setCharacteristicNotification(characteristic, enabled)
-
-                // Generic Client Characteristic Configuration Descriptor (CCID) UUID for enabling notifications
-                val uuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-                val descriptor = characteristic.getDescriptor(uuid)
-                descriptor?.let { desc ->
-                    desc.value = if (enabled) {
-                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    } else {
-                        BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-                    }
-                    gatt.writeDescriptor(desc)
-                }
-            } ?: run {
-                Log.w(TAG, "BluetoothGatt not initialized")
-            }
-        } ?: run {
-            Log.w(TAG, "BluetoothAdapter not initialized")
+        bluetoothGatt?.setCharacteristicNotification(characteristic, enabled)
+        val uuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        val descriptor = characteristic.getDescriptor(uuid)
+        descriptor?.let { desc ->
+            desc.value = if (enabled) BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE else BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+            bluetoothGatt?.writeDescriptor(desc)
         }
     }
 
@@ -134,32 +118,13 @@ class BluetoothLeService : Service() {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.i(TAG, "Services discovered successfully")
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED)
-            } else {
-                Log.w(TAG, "onServicesDiscovered received: $status")
-            }
-        }
 
-        override fun onCharacteristicRead(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic)
-            }
-        }
+                val prefs = getSharedPreferences("HopLinkPrefs", Context.MODE_PRIVATE)
+                val myProfileName = prefs.getString("USER_ALIAS", "Anonymous") ?: "Anonymous"
 
-        override fun onCharacteristicWrite(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.i(TAG, "Successfully wrote data to characteristic")
-            } else {
-                Log.w(TAG, "Characteristic write failed, status: $status")
+                val handshakeMessage = "[SYS_NAME]:$myProfileName"
+                writeMessageToCharacteristic(gatt, handshakeMessage)
             }
         }
 
@@ -167,30 +132,36 @@ class BluetoothLeService : Service() {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic)
+            val data = characteristic.value
+            if (data != null && data.isNotEmpty()) {
+                val receivedText = String(data, Charsets.UTF_8)
+
+                if (receivedText.startsWith("[SYS_NAME]:")) {
+                    val peerName = receivedText.removePrefix("[SYS_NAME]:")
+                    val address = gatt.device.address
+
+                    val intent = Intent(ACTION_NAME_AVAILABLE).apply {
+                        putExtra(EXTRA_ADDRESS, address)
+                        putExtra(EXTRA_NAME, peerName)
+                    }
+                    sendBroadcast(intent)
+                } else {
+                    val intent = Intent(ACTION_DATA_AVAILABLE).apply {
+                        putExtra(EXTRA_DATA, receivedText)
+                    }
+                    sendBroadcast(intent)
+                }
+            }
         }
     }
 
     private fun broadcastUpdate(action: String) {
-        val intent = Intent(action)
-        sendBroadcast(intent)
-    }
-
-    private fun broadcastUpdate(action: String, characteristic: BluetoothGattCharacteristic) {
-        val intent = Intent(action)
-        val data: ByteArray? = characteristic.value
-        if (data != null && data.isNotEmpty()) {
-            val message = String(data, Charsets.UTF_8)
-            intent.putExtra(EXTRA_DATA, message)
-        }
-        sendBroadcast(intent)
+        sendBroadcast(Intent(action))
     }
 
     private fun close() {
-        bluetoothGatt?.let { gatt ->
-            gatt.close()
-            bluetoothGatt = null
-        }
+        bluetoothGatt?.close()
+        bluetoothGatt = null
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -203,7 +174,11 @@ class BluetoothLeService : Service() {
         const val ACTION_GATT_DISCONNECTED = "com.example.bluetoothchatapplication02.ACTION_GATT_DISCONNECTED"
         const val ACTION_GATT_SERVICES_DISCOVERED = "com.example.bluetoothchatapplication02.ACTION_GATT_SERVICES_DISCOVERED"
         const val ACTION_DATA_AVAILABLE = "com.example.bluetoothchatapplication02.ACTION_DATA_AVAILABLE"
+        const val ACTION_NAME_AVAILABLE = "com.example.bluetoothchatapplication02.ACTION_NAME_AVAILABLE"
+
         const val EXTRA_DATA = "com.example.bluetoothchatapplication02.EXTRA_DATA"
+        const val EXTRA_ADDRESS = "com.example.bluetoothchatapplication02.EXTRA_ADDRESS"
+        const val EXTRA_NAME = "com.example.bluetoothchatapplication02.EXTRA_NAME"
 
         private const val STATE_DISCONNECTED = 0
         private const val STATE_CONNECTED = 2

@@ -33,6 +33,7 @@ import com.example.bluetoothchatapplication02.ui.components.Screen
 import com.example.bluetoothchatapplication02.ui.screens.ChatScreen
 import com.example.bluetoothchatapplication02.ui.screens.DiscoverScreen
 import com.example.bluetoothchatapplication02.ui.screens.HopLinkDashboardScreen
+import com.example.bluetoothchatapplication02.ui.screens.ProfileDialog
 import com.example.bluetoothchatapplication02.ui.screens.SosScreen
 import com.example.bluetoothchatapplication02.ui.theme.BluetoothChatApplication02Theme
 import com.example.bluetoothchatapplication02.viewmodel.BluetoothViewModel
@@ -62,25 +63,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val gattUpdateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+    private val gattUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothLeService.ACTION_GATT_CONNECTED -> {
-                    viewModel.updateConnectionStatus("Connected")
                 }
-
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
-                    viewModel.updateConnectionStatus("Disconnected")
                 }
+                BluetoothLeService.ACTION_NAME_AVAILABLE -> {
+                    val address = intent.getStringExtra(BluetoothLeService.EXTRA_ADDRESS) ?: return
+                    val name = intent.getStringExtra(BluetoothLeService.EXTRA_NAME) ?: return
 
-                android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    val state = intent.getIntExtra(
-                        android.bluetooth.BluetoothAdapter.EXTRA_STATE,
-                        android.bluetooth.BluetoothAdapter.ERROR
-                    )
-                    if (state == android.bluetooth.BluetoothAdapter.STATE_OFF) {
-                        viewModel.clearDiscoveredDevices()
-                    }
+                    viewModel.updateDeviceAlias(address, name)
+                }
+                BluetoothLeService.ACTION_DATA_AVAILABLE -> {
+                    val message = intent.getStringExtra(BluetoothLeService.EXTRA_DATA) ?: return
+                    viewModel.receiveChatMessage(message)
                 }
             }
         }
@@ -121,6 +119,36 @@ class MainActivity : ComponentActivity() {
                 }
 
                 var currentRoute by remember { mutableStateOf(Screen.Home.route) }
+                var savedUsername by remember {
+                    mutableStateOf(
+                        getSharedPreferences("HopLinkPrefs", MODE_PRIVATE).getString("USER_ALIAS", "") ?: ""
+                    )
+                }
+
+                var showProfileDialog by remember { mutableStateOf(savedUsername.isEmpty()) }
+
+                if (showProfileDialog) {
+                    ProfileDialog(
+                        currentName = savedUsername,
+                        isFirstLaunch = savedUsername.isEmpty(),
+                        onDismiss = { showProfileDialog = false },
+                        onSave = { newName ->
+                            getSharedPreferences("HopLinkPrefs", MODE_PRIVATE)
+                                .edit()
+                                .putString("USER_ALIAS", newName)
+                                .apply()
+
+                            savedUsername = newName
+                            showProfileDialog = false
+
+                            val adapter = bluetoothSupport.getBluetoothAdapter()
+                            if (isHopLinkOn && adapter != null) {
+                                bluetoothAdvertiser.stopAdvertising(adapter)
+                                bluetoothAdvertiser.startAdvertising(adapter, savedUsername)
+                            }
+                        }
+                    )
+                }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -138,6 +166,8 @@ class MainActivity : ComponentActivity() {
                         when (currentRoute) {
                             Screen.Home.route -> {
                                 HopLinkDashboardScreen(
+                                    userName = savedUsername,
+                                    onEditClick = { showProfileDialog = true },
                                     discoveredCount = discoveredDevices.size,
                                     isBluetoothOn = isHopLinkOn,
                                     activeRelaysCount = activeRelays,
@@ -222,7 +252,10 @@ class MainActivity : ComponentActivity() {
     private fun startDiscovery() {
         val adapter = bluetoothSupport.getBluetoothAdapter()
         if (adapter != null && adapter.isEnabled) {
-            bluetoothAdvertiser.startAdvertising(adapter)
+            val prefs = getSharedPreferences("HopLinkPrefs", MODE_PRIVATE)
+            val savedName = prefs.getString("USER_ALIAS", "Anonymous") ?: "Anonymous"
+            bluetoothAdvertiser.startAdvertising(adapter, savedName)
+
             bluetoothScanner.scanLeDevice(adapter) { discoveredDevice ->
                 viewModel.addDiscoveredDevice(discoveredDevice)
             }
@@ -255,7 +288,9 @@ class MainActivity : ComponentActivity() {
         return IntentFilter().apply {
             addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
             addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
-            addAction(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED) // Listens for system Bluetooth changes
+            addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED)
+            addAction(BluetoothLeService.ACTION_DATA_AVAILABLE)
+            addAction(BluetoothLeService.ACTION_NAME_AVAILABLE)
         }
     }
 }

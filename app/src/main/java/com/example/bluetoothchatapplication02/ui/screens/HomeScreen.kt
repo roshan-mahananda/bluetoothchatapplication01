@@ -21,23 +21,27 @@ import com.example.bluetoothchatapplication02.ui.components.BluePrimary
 import com.example.bluetoothchatapplication02.ui.components.CardBackground
 
 @Composable
-fun HopLinkHeader(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 24.dp)
+fun HopLinkHeader(
+    userName: String,
+    onEditClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(bottom = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "HopLink",
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 32.sp,
-            color = Color.Black
-        )
-        Text(
-            text = "Works without internet or signal",
-            color = Color.Gray,
-            fontSize = 16.sp
-        )
+        Column {
+            Text(text = "HopLink", fontWeight = FontWeight.ExtraBold, fontSize = 32.sp)
+            Text(text = "Broadcasting as: $userName", color = Color.Gray, fontSize = 14.sp)
+        }
+        IconButton(onClick = onEditClick) {
+            Icon(
+                painterResource(R.drawable.edit_24px),
+                contentDescription = "Edit Name",
+                tint = Color.Gray
+            )
+        }
     }
 }
 
@@ -163,15 +167,21 @@ fun DashboardCard(
 
 @Composable
 fun HopLinkDashboardScreen(
+    userName: String, // Add this
     discoveredCount: Int,
     isBluetoothOn: Boolean,
     activeRelaysCount: Int,
     queuedMessagesCount: Int,
     onToggleBluetooth: (Boolean) -> Unit,
-    onDiscoverClick: () -> Unit
+    onDiscoverClick: () -> Unit,
+    onEditClick: () -> Unit
 ) {
     Column(modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
-        HopLinkHeader()
+        HopLinkHeader(
+            userName = userName,
+            onEditClick = onEditClick
+        )
+
         MainToggleCard(isBluetoothOn = isBluetoothOn, onToggle = onToggleBluetooth)
 
         DashboardCard(

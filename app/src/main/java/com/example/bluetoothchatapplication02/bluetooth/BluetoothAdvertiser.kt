@@ -13,7 +13,7 @@ class BluetoothAdvertiser {
         private set
 
     @SuppressLint("MissingPermission")
-    fun startAdvertising(bluetoothAdapter: BluetoothAdapter?) {
+    fun startAdvertising(bluetoothAdapter: BluetoothAdapter?, username: String) {
         val advertiser = bluetoothAdapter?.bluetoothLeAdvertiser
         if (advertiser == null || isAdvertising) return
 
@@ -23,12 +23,15 @@ class BluetoothAdvertiser {
             .setConnectable(true)
             .build()
 
+        val safeName = username.take(12)
+        val nameBytes = safeName.toByteArray(Charsets.UTF_8)
+
         val data = AdvertiseData.Builder()
             .addServiceUuid(HopLinkConfig.SERVICE_UUID)
+            .addServiceData(HopLinkConfig.SERVICE_UUID, nameBytes) // Embed the name
             .setIncludeDeviceName(false)
             .build()
 
-        // 2. Scan Response packet (Put the heavy device name here)
         val scanResponse = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .build()

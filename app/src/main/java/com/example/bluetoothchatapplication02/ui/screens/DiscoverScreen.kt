@@ -72,7 +72,7 @@ fun DeviceCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = device.deviceName,
+                        text = device.userAlias ?: device.deviceName,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = Color.Black

@@ -5,6 +5,7 @@ import com.example.bluetoothchatapplication02.model.BluetoothDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class BluetoothViewModel : ViewModel() {
     private val _discoverableDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
@@ -26,6 +27,22 @@ class BluetoothViewModel : ViewModel() {
 
     fun clearDiscoveredDevices() {
         _discoverableDevices.value = emptyList()
+    }
+
+    fun updateDeviceAlias(address: String, alias: String) {
+        _discoverableDevices.update { devices ->
+            devices.map { device ->
+                if (device.deviceAddress == address) {
+                    device.copy(userAlias = alias)
+                } else {
+                    device
+                }
+            }
+        }
+    }
+
+    fun receiveChatMessage(message: String) {
+
     }
 
     fun updateConnectionStatus(status: String) {

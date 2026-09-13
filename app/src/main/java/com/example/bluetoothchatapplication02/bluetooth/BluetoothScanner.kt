@@ -44,12 +44,21 @@ class BluetoothScanner {
                 super.onScanResult(callbackType, result)
 
                 val address = result.device.address
-                val uniqueId = address.takeLast(5).replace(":", "")
+                val serviceData = result.scanRecord?.getServiceData(HopLinkConfig.SERVICE_UUID)
+
+                val extractedName = if (serviceData != null) {
+                    String(serviceData, Charsets.UTF_8)
+                } else {
+                    val uniqueId = address.takeLast(5).replace(":", "")
+                    "HopNode-$uniqueId"
+                }
 
                 val customDevice = BluetoothDevice(
-                    deviceName = "HopNode-$uniqueId",
-                    deviceAddress = address
+                    deviceName = extractedName,
+                    deviceAddress = address,
+                    userAlias = extractedName
                 )
+
                 onDeviceFound(customDevice)
             }
         }
